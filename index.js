@@ -82,12 +82,13 @@ module.exports = function Email(sails) {
      */
     initialize: function (cb) {
       self = this;
+      transport = [];
 
       // Optimization for later on: precompile all the templates here and
       // build up a directory of named functions.
       //
       if (sails.config[self.configKey].testMode) {
-        transport = {
+        transport[0] = {
           sendMail: function (options, cb) {
 
             // Add sent timestamp
@@ -112,20 +113,29 @@ module.exports = function Email(sails) {
       } else {
 
         try {
-          if (sails.config[self.configKey].transporter) {
+          if (sails.config[self.configKey].transporters) {
+            transport = sails.config[self.configKey].transporters.map(function (transporter) {
+              return nodemailer.createTransport(transporter);
+            })
+          } else if (sails.config[self.configKey].transporter) {
             // If custom transporter is set, use that first
-            transport = nodemailer.createTransport(sails.config[self.configKey].transporter);
+            transport[0] = nodemailer.createTransport(sails.config[self.configKey].transporter);
           } else {
             // create reusable transport method (opens pool of SMTP connections)
             var smtpPool = require('nodemailer-smtp-pool');
-            transport = nodemailer.createTransport(smtpPool({
+            transport[0] = nodemailer.createTransport(smtpPool({
               service: sails.config[self.configKey].service,
               auth: sails.config[self.configKey].auth
             }));
           }
 
           // Auto generate text
-          transport.use('compile', htmlToText());
+          for (let i = 0; i < transport.length; i++) {
+            (transport[i]).use('compile', htmlToText());
+          }
+          // transport.forEach((t) => {
+          //   t.use('compile', htmlToText());
+          // });
           return cb();
         }
         catch (e) {
@@ -146,6 +156,7 @@ module.exports = function Email(sails) {
     send: function (template, data, options, cb) {
 
       data = data || {};
+      var index = data.index || 0;
       // Turn off layouts by default
       if (typeof data.layout === 'undefined') data.layout = false;
 
@@ -191,7 +202,7 @@ module.exports = function Email(sails) {
               var mailOptions = _.defaults(options, defaultOptions);
               mailOptions.to = sails.config[self.configKey].alwaysSendTo || mailOptions.to;
 
-              transport.sendMail(mailOptions, next);
+              transport[index].sendMail(mailOptions, next);
             }]
 
           },
