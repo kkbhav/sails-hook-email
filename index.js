@@ -23,7 +23,7 @@ var _ = require('lodash');
  * @hook
  */
 
-module.exports = function Email(sails) {
+module.exports = function Emails(sails) {
 
   var transport;
   var self;
