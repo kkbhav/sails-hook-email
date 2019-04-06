@@ -115,11 +115,14 @@ module.exports = function Emails(sails) {
         try {
           if (sails.config[self.configKey].transporters) {
             transport = sails.config[self.configKey].transporters.map(function (transporter) {
-              return nodemailer.createTransport(transporter);
+              var t = nodemailer.createTransport(transporter);
+              t.from = transporter.from || sails.config[self.configKey].from;
+              return t;
             })
           } else if (sails.config[self.configKey].transporter) {
             // If custom transporter is set, use that first
             transport[0] = nodemailer.createTransport(sails.config[self.configKey].transporter);
+            transport[0].from = sails.config[self.configKey].transporter.from || sails.config[self.configKey].from;
           } else {
             // create reusable transport method (opens pool of SMTP connections)
             var smtpPool = require('nodemailer-smtp-pool');
@@ -127,6 +130,7 @@ module.exports = function Emails(sails) {
               service: sails.config[self.configKey].service,
               auth: sails.config[self.configKey].auth
             }));
+            transport[0].from = sails.config[self.configKey].from;
           }
 
           // Auto generate text
@@ -165,7 +169,7 @@ module.exports = function Emails(sails) {
 
       // Set some default options
       var defaultOptions = {
-        from: sails.config[self.configKey].from
+        from: transport[index].from || sails.config[self.configKey].from
       };
 
       sails.log.verbose('EMAILING:', options);
